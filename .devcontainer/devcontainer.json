@@ -1,0 +1,21 @@
+{
+  "name": "whisper-cpp-dev",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "extensions": [
+    "ms-iot.vscode-ros",
+    "ms-python.python"
+  ],
+  "workspaceFolder": "/root/ros2_ws",
+  "remoteUser": "root",
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/root/ros2_ws/whisper.cpp,type=bind"
+  ],
+  "runArgs": [
+    "--device=/dev/snd",
+    "-e", "PULSE_SERVER=unix:/tmp/pulse/native",
+    "-v", "/tmp/pulse:/tmp/pulse",
+    "--network=host"
+  ]
+}
