@@ -543,134 +543,73 @@ static int always_prompt_transcription(struct whisper_context * ctx, audio_async
 // general-purpose mode
 // freely transcribe the voice into text
 static int process_general_transcription(struct whisper_context * ctx, audio_async & audio, const whisper_params & params) {
-    bool is_running  = true;
+    bool is_running = true;
     bool have_prompt = false;
-    bool ask_prompt  = true;
+    bool ask_prompt = true;
 
     float logprob_min0 = 0.0f;
-    float logprob_min  = 0.0f;
-
     float logprob_sum0 = 0.0f;
-    float logprob_sum  = 0.0f;
-
     int n_tokens0 = 0;
-    int n_tokens  = 0;
 
     std::vector<float> pcmf32_cur;
-    std::vector<float> pcmf32_prompt;
-
-    std::string k_prompt = "Ok Whisper, start listening for commands.";
-    if (!params.prompt.empty()) {
-        k_prompt = params.prompt;
-    }
+    const std::string k_prompt_start = "Ok robot, start listening.";
+    const std::string k_prompt_stop = "Ok robot, stop listening.";
 
     fprintf(stderr, "\n");
     fprintf(stderr, "%s: general-purpose mode\n", __func__);
 
-    // main loop
     while (is_running) {
-        // handle Ctrl + C
         is_running = sdl_poll_events();
-
-        // delay
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
         if (ask_prompt) {
             fprintf(stdout, "\n");
-            fprintf(stdout, "%s: Say the following phrase: '%s%s%s'\n", __func__, "\033[1m", k_prompt.c_str(), "\033[0m");
+            fprintf(stdout, "%s: Say '%s%s%s' to start.\n", 
+                    __func__, 
+                    "\033[1m", k_prompt_start.c_str(), "\033[0m");
             fprintf(stdout, "\n");
-
             ask_prompt = false;
         }
 
-        {
-            audio.get(2000, pcmf32_cur);
+        audio.get(2000, pcmf32_cur);
+        if (::vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
+            int64_t t_ms = 0;
+            audio.get(params.command_ms, pcmf32_cur);
+            const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, "prompt", logprob_min0, logprob_sum0, n_tokens0, t_ms));
+            
+            const float sim_start = similarity(txt, k_prompt_start);
+            const float sim_stop = similarity(txt, k_prompt_stop);
 
-            if (::vad_simple(pcmf32_cur, WHISPER_SAMPLE_RATE, 1000, params.vad_thold, params.freq_thold, params.print_energy)) {
-                fprintf(stdout, "%s: Speech detected! Processing ...\n", __func__);
+            fprintf(stdout, "%s: Speech detected! Processing ...\n", __func__);
+            fprintf(stdout, "%s: Heard '%s%s%s', (t = %d ms, p = %.2f%%)\n", 
+                    __func__, "\033[1m", txt.c_str(), "\033[0m", 
+                    (int) t_ms, 100.0f * std::exp(logprob_min0));
 
-                int64_t t_ms = 0;
-
-                if (!have_prompt) {
-                    // wait for activation phrase
-                    audio.get(params.prompt_ms, pcmf32_cur);
-
-                    const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, "prompt", logprob_min0, logprob_sum0, n_tokens0, t_ms));
-
-                    const float p = 100.0f * std::exp(logprob_min0);
-
-                    fprintf(stdout, "%s: Heard '%s%s%s', (t = %d ms, p = %.2f%%)\n", __func__, "\033[1m", txt.c_str(), "\033[0m", (int) t_ms, p);
-
-                    const float sim = similarity(txt, k_prompt);
-
-                    if (txt.length() < 0.8*k_prompt.length() || txt.length() > 1.2*k_prompt.length() || sim < 0.8f) {
-                        fprintf(stdout, "%s: WARNING: prompt not recognized, try again\n", __func__);
-                        ask_prompt = true;
-                    } else {
-                        fprintf(stdout, "\n");
-                        fprintf(stdout, "%s: The prompt has been recognized!\n", __func__);
-                        fprintf(stdout, "%s: Waiting for voice commands ...\n", __func__);
-                        fprintf(stdout, "\n");
-
-                        // save the audio for the prompt
-                        pcmf32_prompt = pcmf32_cur;
-                        have_prompt = true;
-                    }
-                } else {
-                    // we have heard the activation phrase, now detect the commands
-                    audio.get(params.command_ms, pcmf32_cur);
-
-                    //printf("len prompt:  %.4f\n", pcmf32_prompt.size() / (float) WHISPER_SAMPLE_RATE);
-                    //printf("len command: %.4f\n", pcmf32_cur.size() / (float) WHISPER_SAMPLE_RATE);
-
-                    // prepend 3 second of silence
-                    pcmf32_cur.insert(pcmf32_cur.begin(), 3.0f*WHISPER_SAMPLE_RATE, 0.0f);
-
-                    // prepend the prompt audio
-                    pcmf32_cur.insert(pcmf32_cur.begin(), pcmf32_prompt.begin(), pcmf32_prompt.end());
-
-                    const auto txt = ::trim(::transcribe(ctx, params, pcmf32_cur, "root", logprob_min, logprob_sum, n_tokens, t_ms));
-
-                    //const float p = 100.0f * std::exp((logprob - logprob0) / (n_tokens - n_tokens0));
-                    const float p = 100.0f * std::exp(logprob_min);
-
-                    //fprintf(stdout, "%s: heard '%s'\n", __func__, txt.c_str());
-
-                    // find the prompt in the text
-                    float best_sim = 0.0f;
-                    size_t best_len = 0;
-                    for (size_t n = 0.8*k_prompt.size(); n <= 1.2*k_prompt.size(); ++n) {
-                        if (n >= txt.size()) {
-                            break;
-                        }
-
-                        const auto prompt = txt.substr(0, n);
-
-                        const float sim = similarity(prompt, k_prompt);
-
-                        //fprintf(stderr, "%s: prompt = '%s', sim = %f\n", __func__, prompt.c_str(), sim);
-
-                        if (sim > best_sim) {
-                            best_sim = sim;
-                            best_len = n;
-                        }
-                    }
-
-                    fprintf(stdout, "%s:   DEBUG: txt = '%s', prob = %.2f%%\n", __func__, txt.c_str(), p);
-                    if (best_len == 0) {
-                        fprintf(stdout, "%s: WARNING: command not recognized, try again\n", __func__);
-                    } else {
-                        // cut the prompt from the decoded text
-                        const std::string command = ::trim(txt.substr(best_len));
-
-                        fprintf(stdout, "%s: Command '%s%s%s', (t = %d ms)\n", __func__, "\033[1m", command.c_str(), "\033[0m", (int) t_ms);
-                    }
-
+            if (!have_prompt) {
+                // Only looking for the start command
+                if (sim_start > 0.7f && sim_start > sim_stop) {
+                    fprintf(stdout, "%s: Starting to listen ...\n", __func__);
+                    have_prompt = true;
+                }
+            } else {
+                // Already listening, check if it's the stop command
+                if (sim_stop > 0.7f && sim_stop > sim_start) {
+                    fprintf(stdout, "%s: Stopping listening ...\n", __func__);
+                    have_prompt = false;
+                    ask_prompt = true;
+                } else if (sim_start <= 0.7f && sim_stop <= 0.7f) { 
+                    // Only transcribe if it's NOT similar to any command
+                    fprintf(stdout, "%s: Transcribed: '%s'\n", __func__, txt.c_str());
+                    fprintf(stdout, "\n");
+                    fprintf(stdout, "%s: Say '%s%s%s' to stop.\n", 
+                            __func__, 
+                            "\033[1m", k_prompt_stop.c_str(), "\033[0m");
                     fprintf(stdout, "\n");
                 }
-
-                audio.clear();
             }
+            
+            // Clear audio buffer after processing
+            audio.clear();
         }
     }
 
