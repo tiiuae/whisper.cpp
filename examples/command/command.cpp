@@ -20,6 +20,9 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <nats/nats.h>
+
+const char* NATS_SERVER_URL = "nats://localhost:4222";
 
 // command-line parameters
 struct whisper_params {
@@ -551,9 +554,26 @@ static int process_general_transcription(struct whisper_context * ctx, audio_asy
     float logprob_sum0 = 0.0f;
     int n_tokens0 = 0;
 
+    // Initialize NATS connection
+    natsConnection *nc = NULL;
+    natsStatus s;
+    
+    // First try to get the NATS server URL from environment variable
+    const char* env_nats_url = getenv("NATS_URL");
+    const char* nats_url = env_nats_url ? env_nats_url : NATS_SERVER_URL;
+    
+    fprintf(stdout, "%s: Connecting to NATS server at %s\n", __func__, nats_url);
+    s = natsConnection_ConnectTo(&nc, nats_url);
+    if (s != NATS_OK) {
+        fprintf(stderr, "Error connecting to NATS server at %s: %d - %s\n", 
+                nats_url, s, natsStatus_GetText(s));
+        return 1;
+    }
+    fprintf(stdout, "%s: Connected to NATS server successfully\n", __func__);
+
     std::vector<float> pcmf32_cur;
-    const std::string k_prompt_start = "Ok robot, start listening.";
-    const std::string k_prompt_stop = "Ok robot, stop listening.";
+    const std::string k_prompt_start = "Ok UGV, start listening.";
+    const std::string k_prompt_stop = "Ok UGV, stop listening.";
 
     fprintf(stderr, "\n");
     fprintf(stderr, "%s: general-purpose mode\n", __func__);
@@ -600,11 +620,15 @@ static int process_general_transcription(struct whisper_context * ctx, audio_asy
                 } else if (sim_start <= 0.7f && sim_stop <= 0.7f) { 
                     // Only transcribe if it's NOT similar to any command
                     fprintf(stdout, "%s: Transcribed: '%s'\n", __func__, txt.c_str());
-                    fprintf(stdout, "\n");
                     fprintf(stdout, "%s: Say '%s%s%s' to stop.\n", 
                             __func__, 
                             "\033[1m", k_prompt_stop.c_str(), "\033[0m");
-                    fprintf(stdout, "\n");
+                    
+                    // Publish transcribed text to NATS
+                    s = natsConnection_PublishString(nc, "whisper.transcription", txt.c_str());
+                    if (s != NATS_OK) {
+                        fprintf(stderr, "Error publishing to NATS: %d - %s\n", s, natsStatus_GetText(s));
+                    }
                 }
             }
             
@@ -612,6 +636,10 @@ static int process_general_transcription(struct whisper_context * ctx, audio_asy
             audio.clear();
         }
     }
+
+    // Cleanup NATS connection
+    natsConnection_Destroy(nc);
+    nats_Close();
 
     return 0;
 }
