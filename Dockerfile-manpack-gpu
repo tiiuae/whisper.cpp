@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y \
 # Install CUDA (specific to Jetson)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    cuda-toolkit-10-2 \
+    cuda-toolkit-11-4 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create working directory
