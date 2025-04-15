@@ -26,12 +26,15 @@ RUN apt-get update && apt-get install -y \
     pulseaudio \
     && rm -rf /var/lib/apt/lists/*
 
-# Install CMake
-RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null && \
-    apt-add-repository "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main" && \
-    apt-get update && \
-    apt-get install -y cmake && \
-    rm -rf /var/lib/apt/lists/*
+# Install newer CMake from source
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.28.1/cmake-3.28.1.tar.gz && \
+    tar -zxvf cmake-3.28.1.tar.gz && \
+    cd cmake-3.28.1 && \
+    ./bootstrap && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && \
+    rm -rf cmake-3.28.1 cmake-3.28.1.tar.gz
 
 # Install CUDA (specific to Jetson)
 RUN apt-get update && \
