@@ -1,5 +1,5 @@
 # Build stage
-FROM nvcr.io/nvidia/l4t-base:r35.4.1 AS build
+FROM nvcr.io/nvidia/l4t-base:r35.2.1 AS build
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -25,6 +25,11 @@ RUN apt-get update && apt-get install -y \
     libopenblas-dev \
     libpulse-dev \
     pulseaudio \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install CUDA (specific to Jetson)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     cuda-toolkit-10-2 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -70,7 +75,7 @@ RUN mkdir -p build && \
 RUN cd models && ./download-ggml-model.sh tiny.en
 
 # Runtime stage
-FROM nvcr.io/nvidia/l4t-base:r35.4.1
+FROM nvcr.io/nvidia/l4t-base:r35.2.1
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -84,7 +89,6 @@ RUN apt-get update && apt-get install -y \
     libpulse0 \
     pulseaudio \
     alsa-utils \
-    cuda-runtime-10-2 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root/app
