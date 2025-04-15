@@ -1,13 +1,15 @@
 # Specify platform in base image
 FROM --platform=$TARGETPLATFORM ubuntu:22.04 AS build
 
-# Add QEMU for cross-compilation
-COPY --from=tonistiigi/binfmt:latest /usr/bin/qemu-aarch64-static /usr/bin/qemu-aarch64-static
+# Set up cross-compilation environment
+RUN apt-get update && apt-get install -y \
+    qemu-user-static \
+    binfmt-support
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get install -y \
     git \
     cmake \
     build-essential \
