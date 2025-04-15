@@ -1,0 +1,21 @@
+services:
+  whisper:
+    build:
+      context: .
+      dockerfile: Dockerfile-manpack
+    container_name: whisper-manpack
+    image: whisper-manpack:arm64
+    network_mode: "host"
+    environment:
+      - DEVICE_ID=manpack
+      - NATS_SERVER_URL=nats://localhost:4223
+      - PULSE_SERVER=unix:/run/user/1000/pulse/native
+    devices:
+      - /dev/snd:/dev/snd
+    user: "1000:1000"
+    group_add:
+      - audio
+    volumes:
+      - /run/user/1000/pulse:/run/user/1000/pulse
+      - /etc/machine-id:/etc/machine-id
+      - /run/user/1000/pulse/native:/run/user/1000/pulse/native
