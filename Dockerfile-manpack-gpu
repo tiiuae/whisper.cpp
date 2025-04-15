@@ -1,5 +1,4 @@
-# Build stage
-FROM nvcr.io/nvidia/l4t-base:r35.2.1 AS build
+FROM --platform=$TARGETPLATFORM ubuntu:22.04 AS build
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -7,9 +6,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     git \
     build-essential \
+    cmake \
     curl \
     wget \
-    unzip \
     python3 \
     python3-pip \
     sox \
@@ -24,22 +23,7 @@ RUN apt-get update && apt-get install -y \
     libopenblas-dev \
     libpulse-dev \
     pulseaudio \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install newer CMake from source
-RUN wget https://github.com/Kitware/CMake/releases/download/v3.28.1/cmake-3.28.1.tar.gz && \
-    tar -zxvf cmake-3.28.1.tar.gz && \
-    cd cmake-3.28.1 && \
-    ./bootstrap && \
-    make -j$(nproc) && \
-    make install && \
-    cd .. && \
-    rm -rf cmake-3.28.1 cmake-3.28.1.tar.gz
-
-# Install CUDA (specific to Jetson)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    cuda-toolkit-11-4 \
+    nvidia-cuda-toolkit \
     && rm -rf /var/lib/apt/lists/*
 
 # Create working directory
@@ -76,7 +60,6 @@ RUN mkdir -p build && \
           -DGGML_CUDA=ON \
           -DGGML_NATIVE=OFF \
           -DGGML_CPU_ARM_ARCH=armv8-a \
-          -DCMAKE_CUDA_ARCHITECTURES="53;62;72;87" \
           .. && \
     make -j2
 
@@ -84,7 +67,7 @@ RUN mkdir -p build && \
 RUN cd models && ./download-ggml-model.sh tiny.en
 
 # Runtime stage
-FROM nvcr.io/nvidia/l4t-base:r35.2.1
+FROM --platform=$TARGETPLATFORM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -93,11 +76,12 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     libsdl2-2.0-0 \
     libgomp1 \
-    libssl1.1 \
+    libssl3 \
     libopenblas-base \
     libpulse0 \
     pulseaudio \
     alsa-utils \
+    nvidia-cuda-toolkit-runtime \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root/app
