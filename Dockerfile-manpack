@@ -99,6 +99,7 @@ RUN ldconfig
 
 # Set environment variables
 ENV PATH="/root/app/whisper.cpp/build/bin:${PATH}"
+ENV NATS_URL="nats://localhost:4223"
 
 # Default command with correct path
 CMD ["/root/app/whisper.cpp/build/bin/whisper-command", "-m", "/root/app/whisper.cpp/models/ggml-tiny.en.bin", "--capture", "0"]
