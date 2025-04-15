@@ -1,4 +1,5 @@
-FROM ubuntu:22.04 AS build
+# Build stage
+FROM --platform=$TARGETPLATFORM nvidia/cuda:11.8.0-devel-ubuntu22.04 AS build
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -23,7 +24,6 @@ RUN apt-get update && apt-get install -y \
     libopenblas-dev \
     libpulse-dev \
     pulseaudio \
-    nvidia-cuda-toolkit \
     && rm -rf /var/lib/apt/lists/*
 
 # Create working directory
@@ -67,7 +67,7 @@ RUN mkdir -p build && \
 RUN cd models && ./download-ggml-model.sh tiny.en
 
 # Runtime stage
-FROM ubuntu:22.04
+FROM --platform=$TARGETPLATFORM nvidia/cuda:11.8.0-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -81,16 +81,9 @@ RUN apt-get update && apt-get install -y \
     libpulse0 \
     pulseaudio \
     alsa-utils \
-    cuda-runtime-11-8 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root/app
-
-# Copy CUDA libraries and binaries from build stage
-COPY --from=build /usr/local/cuda* /usr/local/cuda/
-COPY --from=build /usr/lib/x86_64-linux-gnu/libcudart.so* /usr/lib/x86_64-linux-gnu/
-COPY --from=build /usr/lib/x86_64-linux-gnu/libcublas.so* /usr/lib/x86_64-linux-gnu/
-COPY --from=build /usr/lib/x86_64-linux-gnu/libcublasLt.so* /usr/lib/x86_64-linux-gnu/
 
 # Copy only necessary files from build stage
 COPY --from=build /root/app/whisper.cpp /root/app/whisper.cpp
