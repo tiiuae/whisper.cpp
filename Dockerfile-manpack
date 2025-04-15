@@ -1,4 +1,8 @@
-FROM ubuntu:22.04 AS build
+# Specify platform in base image
+FROM --platform=$TARGETPLATFORM ubuntu:22.04 AS build
+
+# Add QEMU for cross-compilation
+COPY --from=tonistiigi/binfmt:latest /usr/bin/qemu-aarch64-static /usr/bin/qemu-aarch64-static
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -21,6 +25,7 @@ RUN apt-get update && apt-get install -y \
     libtool \
     automake \
     pkg-config \
+    libopenblas-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create working directory
@@ -40,24 +45,30 @@ RUN git clone https://github.com/nats-io/nats.c.git && \
         -DNATS_BUILD_WITH_TLS=ON \
         -DNATS_BUILD_EXAMPLES=ON \
         -DBUILD_SHARED_LIBS=ON && \
-    make && \
+    make -j2 && \
     make install && \
     cd ../.. && \
     rm -rf nats.c && \
     ldconfig
 
-# Build whisper.cpp
+# Build whisper.cpp with ARM optimizations
 WORKDIR /root/app/whisper.cpp
 RUN mkdir -p build && \
     cd build && \
-    cmake -DWHISPER_SDL2=ON .. && \
-    make -j
+    cmake -DWHISPER_SDL2=ON \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DWHISPER_ARM_NEON=ON \
+          -DWHISPER_OPENBLAS=ON \
+          -DGGML_NATIVE=OFF \
+          -DGGML_CPU_ARM_ARCH=armv8-a \
+          .. && \
+    make -j2
 
 # Download the model
 RUN cd models && ./download-ggml-model.sh tiny.en
 
 # Runtime stage
-FROM ubuntu:22.04
+FROM --platform=$TARGETPLATFORM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -67,6 +78,7 @@ RUN apt-get update && apt-get install -y \
     libsdl2-2.0-0 \
     libgomp1 \
     libssl3 \
+    libopenblas-base \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root/app
