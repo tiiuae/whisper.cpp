@@ -620,9 +620,11 @@ static int process_general_transcription(struct whisper_context * ctx, audio_asy
                 } else if (sim_start <= 0.7f && sim_stop <= 0.7f) { 
                     // Only transcribe if it's NOT similar to any command
                     fprintf(stdout, "%s: Transcribed: '%s'\n", __func__, txt.c_str());
+                    fprintf(stdout, "\n");
                     fprintf(stdout, "%s: Say '%s%s%s' to stop.\n", 
                             __func__, 
                             "\033[1m", k_prompt_stop.c_str(), "\033[0m");
+                    fprintf(stdout, "\n");
                     
                     // Publish transcribed text to NATS
                     s = natsConnection_PublishString(nc, "whisper.transcription", txt.c_str());
