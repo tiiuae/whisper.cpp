@@ -27,11 +27,19 @@ RUN apt-get update && apt-get install -y \
 # Create working directory
 WORKDIR /root/ros2_ws
 
-# Install NATS.c
+# Install NATS.c properly with all necessary steps
 RUN git clone https://github.com/nats-io/nats.c.git && \
     cd nats.c && \
-    cmake -B build && \
-    cmake --build build --target install && \
+    mkdir build && \
+    cd build && \
+    cmake .. \
+        -DNATS_BUILD_WITH_TLS=ON \
+        -DNATS_BUILD_EXAMPLES=ON \
+        -DBUILD_SHARED_LIBS=ON && \
+    make && \
+    make install && \
+    cd ../.. && \
+    rm -rf nats.c && \
     ldconfig
 
 # Build whisper.cpp from the mounted code
