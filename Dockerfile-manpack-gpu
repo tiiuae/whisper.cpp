@@ -52,7 +52,11 @@ RUN git clone https://github.com/nats-io/nats.c.git && \
 
 # Build whisper.cpp with CUDA support and SDL2
 WORKDIR /root/app/whisper.cpp
-RUN cmake -B build -DGGML_CUDA=1 -DWHISPER_SDL2=ON && \
+RUN cmake -B build \
+        -DGGML_CUDA=1 \
+        -DWHISPER_SDL2=ON \
+        -DCMAKE_CUDA_FLAGS="-I/usr/local/cuda/include" \
+        -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/cuda/lib64 -lcuda -lcudart -lcublas" && \
     cmake --build build -j --config Release
 
 # Download the model
