@@ -50,19 +50,10 @@ RUN git clone https://github.com/nats-io/nats.c.git && \
     rm -rf nats.c && \
     ldconfig
 
-# Build whisper.cpp with CUDA optimizations for Jetson
+# Build whisper.cpp with CUDA support and SDL2
 WORKDIR /root/app/whisper.cpp
-RUN mkdir -p build && \
-    cd build && \
-    cmake -DWHISPER_SDL2=ON \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DGGML_CUDA=ON \
-          -DGGML_CUDA_FORCE_MMQ=OFF \
-          -DCMAKE_CUDA_ARCHITECTURES="72" \
-          -DCMAKE_CUDA_FLAGS="-I/usr/local/cuda/include" \
-          -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/cuda/lib64" \
-          .. && \
-    make -j2
+RUN cmake -B build -DGGML_CUDA=1 -DWHISPER_SDL2=ON && \
+    cmake --build build -j --config Release
 
 # Download the model
 RUN cd models && ./download-ggml-model.sh tiny.en
