@@ -1,5 +1,5 @@
 # Build stage
-FROM dustynv/l4t-ml:r35.4.1 AS build
+FROM nvcr.io/nvidia/deepstream-l4t:6.2-base AS build
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
@@ -9,7 +9,6 @@ RUN apt-get update && apt-get install -y \
     git \
     build-essential \
     cmake \
-    ccache \
     ninja-build \
     sox \
     ffmpeg \
@@ -60,7 +59,7 @@ RUN cmake -B build \
 RUN cd models && ./download-ggml-model.sh tiny.en
 
 # Runtime stage
-FROM dustynv/l4t-ml:r35.4.1
+FROM nvcr.io/nvidia/deepstream-l4t:6.2-base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
