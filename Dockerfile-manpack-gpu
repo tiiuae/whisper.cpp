@@ -2,6 +2,7 @@
 FROM --platform=$TARGETPLATFORM nvidia/cuda:11.8.0-devel-ubuntu22.04 AS build
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -49,17 +50,17 @@ RUN git clone https://github.com/nats-io/nats.c.git && \
     rm -rf nats.c && \
     ldconfig
 
-# Build whisper.cpp with CUDA and ARM optimizations
+# Build whisper.cpp with CUDA optimizations for Jetson
 WORKDIR /root/app/whisper.cpp
 RUN mkdir -p build && \
     cd build && \
     cmake -DWHISPER_SDL2=ON \
           -DCMAKE_BUILD_TYPE=Release \
-          -DWHISPER_ARM_NEON=ON \
-          -DWHISPER_OPENBLAS=ON \
           -DGGML_CUDA=ON \
-          -DGGML_NATIVE=OFF \
-          -DGGML_CPU_ARM_ARCH=armv8-a \
+          -DGGML_CUDA_FORCE_MMQ=OFF \
+          -DCMAKE_CUDA_ARCHITECTURES="72" \
+          -DCMAKE_CUDA_FLAGS="-I/usr/local/cuda/include" \
+          -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/cuda/lib64" \
           .. && \
     make -j2
 
