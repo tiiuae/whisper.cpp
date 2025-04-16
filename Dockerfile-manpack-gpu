@@ -60,7 +60,7 @@ WORKDIR /root/app/whisper.cpp
 RUN cmake -B build \
         -GNinja \
         -DGGML_CUDA=1 \
-        -DCMAKE_CUDA_ARCHITECTURES="72;75" \
+        -DCMAKE_CUDA_ARCHITECTURES="72;75;87" \
         -DWHISPER_SDL2=ON && \
     cmake --build build -j$(nproc) --config Release
 
