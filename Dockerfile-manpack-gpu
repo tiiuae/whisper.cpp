@@ -8,7 +8,6 @@ ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
 RUN apt-get update && apt-get install -y \
     git \
     build-essential \
-    cmake \
     ninja-build \
     sox \
     ffmpeg \
@@ -22,7 +21,14 @@ RUN apt-get update && apt-get install -y \
     libopenblas-dev \
     libpulse-dev \
     pulseaudio \
+    wget \
     && rm -rf /var/lib/apt/lists/*
+
+# Install newer CMake
+RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null && \
+    apt-add-repository "deb https://apt.kitware.com/ubuntu/ focal main" && \
+    apt-get update && apt-get install -y cmake && \
+    rm -rf /var/lib/apt/lists/*
 
 # Create working directory
 WORKDIR /root/app
