@@ -1,5 +1,5 @@
 # Build stage
-FROM nvcr.io/nvidia/l4t-base:r35.4.1 AS build
+FROM dustynv/l4t-ml:r35.4.1 AS build
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
@@ -11,10 +11,6 @@ RUN apt-get update && apt-get install -y \
     cmake \
     ccache \
     ninja-build \
-    curl \
-    wget \
-    python3 \
-    python3-pip \
     sox \
     ffmpeg \
     alsa-utils \
@@ -27,7 +23,6 @@ RUN apt-get update && apt-get install -y \
     libopenblas-dev \
     libpulse-dev \
     pulseaudio \
-    cuda-toolkit-11-4 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create working directory
@@ -47,7 +42,7 @@ RUN git clone https://github.com/nats-io/nats.c.git && \
         -DNATS_BUILD_WITH_TLS=ON \
         -DNATS_BUILD_EXAMPLES=ON \
         -DBUILD_SHARED_LIBS=ON && \
-    make -j2 && \
+    make -j$(nproc) && \
     make install && \
     cd ../.. && \
     rm -rf nats.c && \
@@ -56,6 +51,7 @@ RUN git clone https://github.com/nats-io/nats.c.git && \
 # Build whisper.cpp with CUDA support and SDL2
 WORKDIR /root/app/whisper.cpp
 RUN cmake -B build \
+        -GNinja \
         -DGGML_CUDA=1 \
         -DWHISPER_SDL2=ON && \
     cmake --build build -j$(nproc) --config Release
@@ -64,7 +60,7 @@ RUN cmake -B build \
 RUN cd models && ./download-ggml-model.sh tiny.en
 
 # Runtime stage
-FROM nvcr.io/nvidia/l4t-base:r35.4.1
+FROM dustynv/l4t-ml:r35.4.1
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -78,7 +74,6 @@ RUN apt-get update && apt-get install -y \
     libpulse0 \
     pulseaudio \
     alsa-utils \
-    cuda-toolkit-11-4 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root/app
