@@ -1,5 +1,5 @@
 # Build stage
-FROM --platform=linux/arm64 nvcr.io/nvidia/l4t-base:r35.3.1 AS build
+FROM dustynv/l4t-base:r35.3.1 AS build
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
@@ -9,6 +9,8 @@ RUN apt-get update && apt-get install -y \
     git \
     build-essential \
     cmake \
+    ccache \
+    ninja-build \
     curl \
     wget \
     python3 \
@@ -62,7 +64,7 @@ RUN cmake -B build \
 RUN cd models && ./download-ggml-model.sh tiny.en
 
 # Runtime stage
-FROM --platform=linux/arm64 nvcr.io/nvidia/l4t-base:r35.3.1
+FROM dustynv/l4t-base:r35.3.1
 
 ENV DEBIAN_FRONTEND=noninteractive
 
