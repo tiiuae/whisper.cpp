@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y \
     pulseaudio \
     wget \
     software-properties-common \
+    cuda-toolkit-* \
     && rm -rf /var/lib/apt/lists/*
 
 # Install newer CMake
@@ -59,6 +60,7 @@ WORKDIR /root/app/whisper.cpp
 RUN cmake -B build \
         -GNinja \
         -DGGML_CUDA=1 \
+        -DCMAKE_CUDA_ARCHITECTURES=native \
         -DWHISPER_SDL2=ON && \
     cmake --build build -j$(nproc) --config Release
 
