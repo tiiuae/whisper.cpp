@@ -36,12 +36,18 @@ RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/nul
 WORKDIR /root/app
 
 # Clone your specific repository and branch
-RUN git clone -b feat/manpack https://github.com/tiiuae/whisper.cpp.git && \
-    cd whisper.cpp && \
-    git submodule update --init --recursive
+#RUN git clone -b feat/manpack https://github.com/tiiuae/whisper.cpp.git && \
+#    cd whisper.cpp && \
+#    git submodule update --init --recursive
+
+RUN mkdir whisper.cpp/
+
+COPY . whisper.cpp
+
+RUN cd whisper.cpp && git submodule update --init --recursive
 
 # Install NATS.c
-RUN git clone https://github.com/nats-io/nats.c.git && \
+RUN cd /root/app && git clone https://github.com/nats-io/nats.c.git && \
     cd nats.c && \
     mkdir build && \
     cd build && \
@@ -95,7 +101,7 @@ RUN ldconfig
 
 # Set environment variables
 ENV PATH="/root/app/whisper.cpp/build/bin:${PATH}"
-ENV NATS_URL="nats://192.168.200.2:4222"
+ENV NATS_URL="nats://192.168.200.2:4223"
 
 # Default command with correct path
 CMD ["/root/app/whisper.cpp/build/bin/whisper-command", "-m", "/root/app/whisper.cpp/models/ggml-tiny.en.bin", "--capture", "0"]
