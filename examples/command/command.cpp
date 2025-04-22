@@ -22,7 +22,7 @@
 #include <vector>
 #include <nats/nats.h>
 
-const char* NATS_SERVER_URL = "nats://localhost:4222";
+const char* NATS_SERVER_URL = "nats://localhost:4223";
 
 // command-line parameters
 struct whisper_params {
@@ -627,7 +627,11 @@ static int process_general_transcription(struct whisper_context * ctx, audio_asy
                     fprintf(stdout, "\n");
                     
                     // Publish transcribed text to NATS
-                    s = natsConnection_PublishString(nc, "whisper.transcription", txt.c_str());
+                    const char* drone_id = getenv("DRONE_DEVICE_ID");
+                    std::string subject = (drone_id != nullptr) ? std::string(drone_id) + ".whisper.transcription" : "whisper.transcription"; // fallback
+
+                    s = natsConnection_PublishString(nc, subject.c_str(), txt.c_str());
+                    // s = natsConnection_PublishString(nc, "ugv.whisper.transcription", txt.c_str());
                     if (s != NATS_OK) {
                         fprintf(stderr, "Error publishing to NATS: %d - %s\n", s, natsStatus_GetText(s));
                     }
